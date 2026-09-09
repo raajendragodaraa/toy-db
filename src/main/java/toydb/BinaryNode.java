@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BinaryNode {
+    public static final int NODE_SIZE = 80;
 
     public static class Pointer {
         public static final byte TYPE_DATA = 0x01;
@@ -69,7 +70,8 @@ public class BinaryNode {
     public static class InternalNodeData {
         public static final int DEGREE = 4;
         public static final int MAX_KEYS = DEGREE - 1;
-        public static final int BINARY_SIZE = 1 + Pointer.SIZE + (MAX_KEYS * (4 + Pointer.SIZE));
+        public static final int PAYLOAD_SIZE = 1 + Pointer.SIZE + (MAX_KEYS * (4 + Pointer.SIZE));
+        public static final int PADDING = NODE_SIZE - PAYLOAD_SIZE;
 
         public final boolean isRoot;
         public final List<Integer> keys;
@@ -82,7 +84,7 @@ public class BinaryNode {
         }
 
         public byte[] serialize() {
-            ByteBuffer buffer = ByteBuffer.allocate(BINARY_SIZE);
+            ByteBuffer buffer = ByteBuffer.allocate(NODE_SIZE);
             buffer.put(NodeFlags.createFlag(false, isRoot));
 
             if (!childPointers.isEmpty()) {
@@ -101,6 +103,7 @@ public class BinaryNode {
                 }
             }
 
+            buffer.put(new byte[PADDING]);
             return buffer.array();
         }
 
@@ -130,7 +133,8 @@ public class BinaryNode {
     public static class LeafNodeData {
         public static final int DEGREE = 4;
         public static final int MAX_KEYS = DEGREE - 1;
-        public static final int BINARY_SIZE = 1 + (MAX_KEYS * (4 + Pointer.SIZE)) + (2 * Pointer.SIZE);
+        public static final int PAYLOAD_SIZE = 1 + (MAX_KEYS * (4 + Pointer.SIZE)) + (2 * Pointer.SIZE);
+        public static final int PADDING = NODE_SIZE - PAYLOAD_SIZE;
 
         public final boolean isRoot;
         public final List<Integer> keys;
@@ -147,7 +151,7 @@ public class BinaryNode {
         }
 
         public byte[] serialize() {
-            ByteBuffer buffer = ByteBuffer.allocate(BINARY_SIZE);
+            ByteBuffer buffer = ByteBuffer.allocate(NODE_SIZE);
             buffer.put(NodeFlags.createFlag(true, isRoot));
 
             for (int i = 0; i < MAX_KEYS; i++) {
@@ -163,6 +167,7 @@ public class BinaryNode {
             (prevSibling != null ? prevSibling : new Pointer((byte) 0, 0, 0)).writeToBuffer(buffer);
             (nextSibling != null ? nextSibling : new Pointer((byte) 0, 0, 0)).writeToBuffer(buffer);
 
+            buffer.put(new byte[PADDING]);
             return buffer.array();
         }
 
