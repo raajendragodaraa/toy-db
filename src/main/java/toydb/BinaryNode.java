@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BinaryNode {
-    public static final int NODE_SIZE = 88;
 
     public static class Pointer {
         public static final byte TYPE_DATA = 0x01;
@@ -68,23 +67,26 @@ public class BinaryNode {
     }
 
     public static class InternalNodeData {
-        public static final int DEGREE = 4;
-        public static final int MAX_KEYS = DEGREE - 1;
-        public static final int PAYLOAD_SIZE = 1 + Pointer.SIZE + (MAX_KEYS * (NullableInt.SIZE + Pointer.SIZE));
-        public static final int PADDING = NODE_SIZE - PAYLOAD_SIZE;
-
+        public final int degree;
+        public final int maxKeys;
+        public final int nodeSize;
+        public final int padding;
         public final boolean isRoot;
         public final List<Integer> keys;
         public final List<Pointer> childPointers;
 
-        public InternalNodeData(boolean isRoot, List<Integer> keys, List<Pointer> childPointers) {
+        public InternalNodeData(int degree, boolean isRoot, List<Integer> keys, List<Pointer> childPointers) {
+            this.degree = degree;
+            this.maxKeys = degree - 1;
+            this.nodeSize = EngineConfig.calculateNodeSize(degree);
+            this.padding = nodeSize - EngineConfig.calculateInternalPayload(degree);
             this.isRoot = isRoot;
             this.keys = keys;
             this.childPointers = childPointers;
         }
 
         public byte[] serialize() {
-            ByteBuffer buffer = ByteBuffer.allocate(NODE_SIZE);
+            ByteBuffer buffer = ByteBuffer.allocate(nodeSize);
             buffer.put(NodeFlags.createFlag(false, isRoot));
 
             if (!childPointers.isEmpty()) {
@@ -93,7 +95,7 @@ public class BinaryNode {
                 new Pointer((byte) 0, 0, 0).writeToBuffer(buffer);
             }
 
-            for (int i = 0; i < MAX_KEYS; i++) {
+            for (int i = 0; i < maxKeys; i++) {
                 if (i < keys.size()) {
                     new NullableInt(keys.get(i)).writeToBuffer(buffer);
                     childPointers.get(i + 1).writeToBuffer(buffer);
@@ -103,21 +105,24 @@ public class BinaryNode {
                 }
             }
 
-            buffer.put(new byte[PADDING]);
+            if (padding > 0) {
+                buffer.put(new byte[padding]);
+            }
             return buffer.array();
         }
 
-        public static InternalNodeData deserialize(byte[] data) {
+        public static InternalNodeData deserialize(byte[] data, int degree) {
             ByteBuffer buffer = ByteBuffer.wrap(data);
             byte flag = buffer.get();
             boolean isRoot = NodeFlags.isRoot(flag);
+            int maxKeys = degree - 1;
 
             List<Pointer> childPointers = new ArrayList<>();
             Pointer leftChild = Pointer.readFromBuffer(buffer);
             childPointers.add(leftChild);
 
             List<Integer> keys = new ArrayList<>();
-            for (int i = 0; i < MAX_KEYS; i++) {
+            for (int i = 0; i < maxKeys; i++) {
                 NullableInt key = NullableInt.readFromBuffer(buffer);
                 Pointer child = Pointer.readFromBuffer(buffer);
                 if (child.type != 0 && !key.isNull()) {
@@ -126,23 +131,26 @@ public class BinaryNode {
                 }
             }
 
-            return new InternalNodeData(isRoot, keys, childPointers);
+            return new InternalNodeData(degree, isRoot, keys, childPointers);
         }
     }
 
     public static class LeafNodeData {
-        public static final int DEGREE = 4;
-        public static final int MAX_KEYS = DEGREE - 1;
-        public static final int PAYLOAD_SIZE = 1 + (MAX_KEYS * (NullableInt.SIZE + Pointer.SIZE)) + (2 * Pointer.SIZE);
-        public static final int PADDING = NODE_SIZE - PAYLOAD_SIZE;
-
+        public final int degree;
+        public final int maxKeys;
+        public final int nodeSize;
+        public final int padding;
         public final boolean isRoot;
         public final List<Integer> keys;
         public final List<Pointer> dataPointers;
         public final Pointer prevSibling;
         public final Pointer nextSibling;
 
-        public LeafNodeData(boolean isRoot, List<Integer> keys, List<Pointer> dataPointers, Pointer prevSibling, Pointer nextSibling) {
+        public LeafNodeData(int degree, boolean isRoot, List<Integer> keys, List<Pointer> dataPointers, Pointer prevSibling, Pointer nextSibling) {
+            this.degree = degree;
+            this.maxKeys = degree - 1;
+            this.nodeSize = EngineConfig.calculateNodeSize(degree);
+            this.padding = nodeSize - EngineConfig.calculateLeafPayload(degree);
             this.isRoot = isRoot;
             this.keys = keys;
             this.dataPointers = dataPointers;
@@ -151,10 +159,10 @@ public class BinaryNode {
         }
 
         public byte[] serialize() {
-            ByteBuffer buffer = ByteBuffer.allocate(NODE_SIZE);
+            ByteBuffer buffer = ByteBuffer.allocate(nodeSize);
             buffer.put(NodeFlags.createFlag(true, isRoot));
 
-            for (int i = 0; i < MAX_KEYS; i++) {
+            for (int i = 0; i < maxKeys; i++) {
                 if (i < keys.size()) {
                     new NullableInt(keys.get(i)).writeToBuffer(buffer);
                     dataPointers.get(i).writeToBuffer(buffer);
@@ -167,19 +175,22 @@ public class BinaryNode {
             (prevSibling != null ? prevSibling : new Pointer((byte) 0, 0, 0)).writeToBuffer(buffer);
             (nextSibling != null ? nextSibling : new Pointer((byte) 0, 0, 0)).writeToBuffer(buffer);
 
-            buffer.put(new byte[PADDING]);
+            if (padding > 0) {
+                buffer.put(new byte[padding]);
+            }
             return buffer.array();
         }
 
-        public static LeafNodeData deserialize(byte[] data) {
+        public static LeafNodeData deserialize(byte[] data, int degree) {
             ByteBuffer buffer = ByteBuffer.wrap(data);
             byte flag = buffer.get();
             boolean isRoot = NodeFlags.isRoot(flag);
+            int maxKeys = degree - 1;
 
             List<Integer> keys = new ArrayList<>();
             List<Pointer> dataPointers = new ArrayList<>();
 
-            for (int i = 0; i < MAX_KEYS; i++) {
+            for (int i = 0; i < maxKeys; i++) {
                 NullableInt key = NullableInt.readFromBuffer(buffer);
                 Pointer dataPtr = Pointer.readFromBuffer(buffer);
                 if (dataPtr.type != 0 && !key.isNull()) {
@@ -192,6 +203,7 @@ public class BinaryNode {
             Pointer next = Pointer.readFromBuffer(buffer);
 
             return new LeafNodeData(
+                    degree,
                     isRoot,
                     keys,
                     dataPointers,

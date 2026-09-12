@@ -11,10 +11,14 @@ public class DatabaseEngine implements Closeable {
     private final DiskStorageManager indexStorage;
     private final OnDiskBPlusTree index;
 
-    public DatabaseEngine(File dataFile, File indexFile, int cacheCapacity) throws IOException {
+    public DatabaseEngine(File dataFile, File indexFile, EngineConfig config, int cacheCapacity) throws IOException {
         this.tableStorage = new TableStorage(dataFile);
-        this.indexStorage = new DiskStorageManager(indexFile);
+        this.indexStorage = new DiskStorageManager(indexFile, config);
         this.index = new OnDiskBPlusTree(this.indexStorage, cacheCapacity);
+    }
+
+    public DatabaseEngine(File dataFile, File indexFile, int cacheCapacity) throws IOException {
+        this(dataFile, indexFile, new EngineConfig(), cacheCapacity);
     }
 
     public synchronized void insert(int id, String record) throws IOException {

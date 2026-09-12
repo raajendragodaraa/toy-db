@@ -4,11 +4,23 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class SimpleBPlusTree {
-    private static final int M = 4;
+    private final int M;
     private Node root;
 
     public SimpleBPlusTree() {
+        this(EngineConfig.DEFAULT_DEGREE);
+    }
+
+    public SimpleBPlusTree(int degree) {
+        if (degree < 3) {
+            throw new IllegalArgumentException("Degree must be at least 3");
+        }
+        this.M = degree;
         this.root = new Node(true);
+    }
+
+    public int getDegree() {
+        return M;
     }
 
     public static class Node {

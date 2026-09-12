@@ -32,7 +32,7 @@ public class DiskStorageManager implements Closeable {
     }
 
     public DiskStorageManager(File dbFile) throws IOException {
-        this(dbFile, new EngineConfig(dbFile.getParentFile() != null ? dbFile.getParentFile() : new File("."), 4, BinaryNode.NODE_SIZE));
+        this(dbFile, new EngineConfig(dbFile.getParentFile() != null ? dbFile.getParentFile() : new File("."), EngineConfig.DEFAULT_DEGREE));
     }
 
     public synchronized BinaryNode.Pointer writeNewNode(byte[] nodeBytes) throws IOException {
