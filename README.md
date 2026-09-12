@@ -4,42 +4,52 @@ A lightweight, educational database storage engine and B+Tree indexing implement
 
 ## Features
 
-- **In-Memory B+Tree Index (`SimpleBPlusTree.java`):**
+- **On-Disk B+Tree Index (`OnDiskBPlusTree.java`):**
   - Parameterized tree degree ($M = 4$, max 3 keys per node).
-  - Point lookup (`search`) in $O(\log N)$.
-  - Range scan queries (`rangeSearch`) in $O(K)$ using doubly-linked leaf nodes.
-  - Dynamic node splitting for leaves and internal routing nodes.
+  - Fixed-size **80-byte node alignment** with 13-byte disk pointers for constant-time page access.
+  - On-demand page loading and recursive node splitting directly on physical disk storage.
+  - Sibling pointer chaining for $O(K)$ leaf-level range scans.
 
-- **Binary Node Memory Layout (`BinaryNode.java`):**
-  - Fixed-size **80-byte node alignment** for direct $O(1)$ disk page offsets.
-  - 13-byte disk pointers (1 byte type flag, 8 bytes position/offset, 4 bytes chunk ID).
-  - Bitwise flag encoding for node role identification (Root, Internal, Leaf).
-  - High-performance binary serialization and deserialization using `java.nio.ByteBuffer`.
+- **LRU Buffer Pool Cache (`LRUCache.java`):**
+  - In-memory Least-Recently-Used cache for 80-byte nodes built on `java.util.LinkedHashMap`.
+  - Dramatically reduces disk I/O operations by keeping frequently accessed routing nodes in RAM.
+  - Built-in metrics tracking cache hits, misses, and hit ratio.
 
-- **On-Disk Storage Engine (`DiskStorageManager.java`):**
-  - Fixed-size page reading, writing, and in-place updating via `RandomAccessFile` and `FileChannel`.
-  - Constant-time seek operations (`file.seek(position)`) to access 80-byte nodes directly on the file system.
-  - Integrated with `EngineConfig` for dynamic runtime tuning.
+- **Record Storage Engine (`TableStorage.java`):**
+  - Variable-length record storage for serialized row data (JSON, strings) on disk.
+  - Clean separation between index metadata (`index.db`) and table heap records (`data.db`).
 
-- **Engine Configuration (`EngineConfig.java`):**
-  - Central configuration dashboard managing B+Tree degree, fixed node size, batch growth allocations, pool limits, and timeout thresholds.
+- **Unified Database Engine (`DatabaseEngine.java`):**
+  - Clean client API supporting `insert(id, record)`, point lookups `get(id)`, and sequential scans `rangeScan(minId, maxId)`.
+  - Full persistence across database restarts verified via persistent header tracking.
 
-- **Index Header & Root Tracking (`IndexHeader.java`):**
-  - Tracks the moving Root pointer on disk as the tree splits and grows.
-  - Stores metadata including degree, node size, and total allocated nodes.
-
-- **Nullable Integer Support (`NullableInt.java`):**
-  - 5-byte representation (`1-byte presence flag + 4-byte int`) resolving the binary "Zero vs. Null" ambiguity.
+- **Binary Serialization & Layout (`BinaryNode.java`, `NullableInt.java`, `IndexHeader.java`, `EngineConfig.java`):**
+  - 80-byte binary page layout and 13-byte disk pointer encoding using `java.nio.ByteBuffer`.
+  - 5-byte nullable integer encoding resolving the binary zero-vs-null ambiguity.
+  - Header metadata tracking the moving root node offset across tree splits.
 
 ## Project Structure
 
 ```text
 src/main/java/toydb/
-├── SimpleBPlusTree.java    # B+Tree data structure and operations
+├── DatabaseEngine.java     # Top-level database API (insert, get, rangeScan)
+├── DatabaseShowcase.java   # End-to-end demo and verification
+├── OnDiskBPlusTree.java    # On-disk B+Tree indexing with on-demand paging
+├── LRUCache.java           # LRU Buffer Pool caching hot disk nodes in RAM
+├── TableStorage.java       # Heap file storage for table record data
+├── DiskStorageManager.java # Physical disk file I/O operations and 80-byte node paging
 ├── BinaryNode.java         # 80-byte aligned binary page layout and serialization
-├── DiskStorageManager.java # Physical disk file I/O operations and node storage
-├── DiskStorageDemo.java    # Verification demo for disk writes, reads, and offsets
-├── EngineConfig.java       # Database engine runtime configuration
-├── IndexHeader.java        # Index metadata and root node tracking
-└── NullableInt.java        # 5-byte integer wrapper distinguishing 0 from empty
+├── IndexHeader.java        # Index metadata and moving root node tracking
+├── NullableInt.java        # 5-byte integer wrapper distinguishing 0 from empty
+├── EngineConfig.java       # Database runtime configuration settings
+└── SimpleBPlusTree.java    # Pure in-memory reference B+Tree implementation
+```
+
+## Quick Start
+
+Compile and run the complete database showcase:
+
+```bash
+javac -d bin src/main/java/toydb/*.java
+java -cp bin toydb.DatabaseShowcase
 ```
