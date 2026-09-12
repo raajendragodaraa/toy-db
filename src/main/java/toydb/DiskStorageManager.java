@@ -8,31 +8,36 @@ import java.nio.channels.FileChannel;
 
 public class DiskStorageManager implements Closeable {
     public static final int HEADER_OFFSET = 0;
-    public static final int FIRST_NODE_OFFSET = BinaryNode.NODE_SIZE;
 
     private final File dbFile;
+    private final EngineConfig config;
     private final RandomAccessFile file;
     private final FileChannel channel;
     private IndexHeader header;
 
-    public DiskStorageManager(File dbFile) throws IOException {
+    public DiskStorageManager(File dbFile, EngineConfig config) throws IOException {
         this.dbFile = dbFile;
+        this.config = config;
         this.file = new RandomAccessFile(dbFile, "rw");
         this.channel = file.getChannel();
 
         if (file.length() >= IndexHeader.HEADER_SIZE) {
             this.header = loadHeader();
         } else {
-            BinaryNode.Pointer initialRoot = new BinaryNode.Pointer(BinaryNode.Pointer.TYPE_NODE, FIRST_NODE_OFFSET, 0);
-            this.header = new IndexHeader(4, BinaryNode.NODE_SIZE, 0, initialRoot);
+            BinaryNode.Pointer initialRoot = new BinaryNode.Pointer(BinaryNode.Pointer.TYPE_NODE, config.getNodeSize(), 0);
+            this.header = new IndexHeader(config.getBTreeDegree(), config.getNodeSize(), 0, initialRoot);
             saveHeader(this.header);
-            file.setLength(FIRST_NODE_OFFSET);
+            file.setLength(config.getNodeSize());
         }
     }
 
+    public DiskStorageManager(File dbFile) throws IOException {
+        this(dbFile, new EngineConfig(dbFile.getParentFile() != null ? dbFile.getParentFile() : new File("."), 4, BinaryNode.NODE_SIZE));
+    }
+
     public synchronized BinaryNode.Pointer writeNewNode(byte[] nodeBytes) throws IOException {
-        if (nodeBytes.length != BinaryNode.NODE_SIZE) {
-            throw new IllegalArgumentException("Node size must be exactly " + BinaryNode.NODE_SIZE + " bytes");
+        if (nodeBytes.length != config.getNodeSize()) {
+            throw new IllegalArgumentException("Node size must be exactly " + config.getNodeSize() + " bytes");
         }
 
         long position = file.length();
@@ -46,19 +51,19 @@ public class DiskStorageManager implements Closeable {
     }
 
     public synchronized byte[] readNode(BinaryNode.Pointer pointer) throws IOException {
-        if (pointer.position + BinaryNode.NODE_SIZE > file.length()) {
+        if (pointer.position + config.getNodeSize() > file.length()) {
             throw new IOException("Offset out of bounds: " + pointer.position);
         }
 
         file.seek(pointer.position);
-        byte[] buffer = new byte[BinaryNode.NODE_SIZE];
+        byte[] buffer = new byte[config.getNodeSize()];
         file.readFully(buffer);
         return buffer;
     }
 
     public synchronized void updateNode(BinaryNode.Pointer pointer, byte[] nodeBytes) throws IOException {
-        if (nodeBytes.length != BinaryNode.NODE_SIZE) {
-            throw new IllegalArgumentException("Node size must be exactly " + BinaryNode.NODE_SIZE + " bytes");
+        if (nodeBytes.length != config.getNodeSize()) {
+            throw new IllegalArgumentException("Node size must be exactly " + config.getNodeSize() + " bytes");
         }
 
         file.seek(pointer.position);
@@ -86,6 +91,10 @@ public class DiskStorageManager implements Closeable {
 
     public IndexHeader getHeader() {
         return header;
+    }
+
+    public EngineConfig getConfig() {
+        return config;
     }
 
     public File getDbFile() {

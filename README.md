@@ -19,7 +19,10 @@ A lightweight, educational database storage engine and B+Tree indexing implement
 - **On-Disk Storage Engine (`DiskStorageManager.java`):**
   - Fixed-size page reading, writing, and in-place updating via `RandomAccessFile` and `FileChannel`.
   - Constant-time seek operations (`file.seek(position)`) to access 80-byte nodes directly on the file system.
-  - Thread-safe resource closing and root pointer tracking.
+  - Integrated with `EngineConfig` for dynamic runtime tuning.
+
+- **Engine Configuration (`EngineConfig.java`):**
+  - Central configuration dashboard managing B+Tree degree, fixed node size, batch growth allocations, pool limits, and timeout thresholds.
 
 - **Index Header & Root Tracking (`IndexHeader.java`):**
   - Tracks the moving Root pointer on disk as the tree splits and grows.
@@ -36,6 +39,7 @@ src/main/java/toydb/
 ├── BinaryNode.java         # 80-byte aligned binary page layout and serialization
 ├── DiskStorageManager.java # Physical disk file I/O operations and node storage
 ├── DiskStorageDemo.java    # Verification demo for disk writes, reads, and offsets
+├── EngineConfig.java       # Database engine runtime configuration
 ├── IndexHeader.java        # Index metadata and root node tracking
 └── NullableInt.java        # 5-byte integer wrapper distinguishing 0 from empty
 ```
