@@ -6,12 +6,12 @@ A lightweight, educational database storage engine and B+Tree indexing implement
 
 - **On-Disk B+Tree Index (`OnDiskBPlusTree.java`):**
   - Parameterized tree degree ($M = 4$, max 3 keys per node).
-  - Fixed-size **80-byte node alignment** with 13-byte disk pointers for constant-time page access.
+  - Fixed-size **88-byte node alignment** with 13-byte disk pointers for constant-time page access.
   - On-demand page loading and recursive node splitting directly on physical disk storage.
   - Sibling pointer chaining for $O(K)$ leaf-level range scans.
 
 - **LRU Buffer Pool Cache (`LRUCache.java`):**
-  - In-memory Least-Recently-Used cache for 80-byte nodes built on `java.util.LinkedHashMap`.
+  - In-memory Least-Recently-Used cache for 88-byte nodes built on `java.util.LinkedHashMap`.
   - Dramatically reduces disk I/O operations by keeping frequently accessed routing nodes in RAM.
   - Built-in metrics tracking cache hits, misses, and hit ratio.
 
@@ -24,8 +24,8 @@ A lightweight, educational database storage engine and B+Tree indexing implement
   - Full persistence across database restarts verified via persistent header tracking.
 
 - **Binary Serialization & Layout (`BinaryNode.java`, `NullableInt.java`, `IndexHeader.java`, `EngineConfig.java`):**
-  - 80-byte binary page layout and 13-byte disk pointer encoding using `java.nio.ByteBuffer`.
-  - 5-byte nullable integer encoding resolving the binary zero-vs-null ambiguity.
+  - 88-byte binary page layout ($81\text{ bytes payload} + 7\text{ bytes padding}$ for leaf nodes) aligned to 8-byte boundaries.
+  - 5-byte nullable integer encoding (`1-byte presence flag + 4-byte int`) resolving the binary zero-vs-null ambiguity and allowing key `0` to be indexed.
   - Header metadata tracking the moving root node offset across tree splits.
 
 ## Project Structure
@@ -37,8 +37,8 @@ src/main/java/toydb/
 ├── OnDiskBPlusTree.java    # On-disk B+Tree indexing with on-demand paging
 ├── LRUCache.java           # LRU Buffer Pool caching hot disk nodes in RAM
 ├── TableStorage.java       # Heap file storage for table record data
-├── DiskStorageManager.java # Physical disk file I/O operations and 80-byte node paging
-├── BinaryNode.java         # 80-byte aligned binary page layout and serialization
+├── DiskStorageManager.java # Physical disk file I/O operations and 88-byte node paging
+├── BinaryNode.java         # 88-byte aligned binary page layout and serialization
 ├── IndexHeader.java        # Index metadata and moving root node tracking
 ├── NullableInt.java        # 5-byte integer wrapper distinguishing 0 from empty
 ├── EngineConfig.java       # Database runtime configuration settings

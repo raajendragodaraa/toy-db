@@ -5,7 +5,7 @@ import java.util.concurrent.TimeUnit;
 
 public class EngineConfig {
     public static final int DEFAULT_DEGREE = 4;
-    public static final int DEFAULT_NODE_SIZE = 80;
+    public static final int DEFAULT_NODE_SIZE = 88;
     public static final int DEFAULT_ALLOCATION_BATCH = 20;
     public static final long UNLIMITED_FILE_SIZE = -1L;
 

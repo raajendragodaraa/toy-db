@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class BinaryNode {
-    public static final int NODE_SIZE = 80;
+    public static final int NODE_SIZE = 88;
 
     public static class Pointer {
         public static final byte TYPE_DATA = 0x01;
@@ -70,7 +70,7 @@ public class BinaryNode {
     public static class InternalNodeData {
         public static final int DEGREE = 4;
         public static final int MAX_KEYS = DEGREE - 1;
-        public static final int PAYLOAD_SIZE = 1 + Pointer.SIZE + (MAX_KEYS * (4 + Pointer.SIZE));
+        public static final int PAYLOAD_SIZE = 1 + Pointer.SIZE + (MAX_KEYS * (NullableInt.SIZE + Pointer.SIZE));
         public static final int PADDING = NODE_SIZE - PAYLOAD_SIZE;
 
         public final boolean isRoot;
@@ -95,10 +95,10 @@ public class BinaryNode {
 
             for (int i = 0; i < MAX_KEYS; i++) {
                 if (i < keys.size()) {
-                    buffer.putInt(keys.get(i));
+                    new NullableInt(keys.get(i)).writeToBuffer(buffer);
                     childPointers.get(i + 1).writeToBuffer(buffer);
                 } else {
-                    buffer.putInt(0);
+                    new NullableInt().writeToBuffer(buffer);
                     new Pointer((byte) 0, 0, 0).writeToBuffer(buffer);
                 }
             }
@@ -118,10 +118,10 @@ public class BinaryNode {
 
             List<Integer> keys = new ArrayList<>();
             for (int i = 0; i < MAX_KEYS; i++) {
-                int key = buffer.getInt();
+                NullableInt key = NullableInt.readFromBuffer(buffer);
                 Pointer child = Pointer.readFromBuffer(buffer);
-                if (child.type != 0) {
-                    keys.add(key);
+                if (child.type != 0 && !key.isNull()) {
+                    keys.add(key.getValue());
                     childPointers.add(child);
                 }
             }
@@ -133,7 +133,7 @@ public class BinaryNode {
     public static class LeafNodeData {
         public static final int DEGREE = 4;
         public static final int MAX_KEYS = DEGREE - 1;
-        public static final int PAYLOAD_SIZE = 1 + (MAX_KEYS * (4 + Pointer.SIZE)) + (2 * Pointer.SIZE);
+        public static final int PAYLOAD_SIZE = 1 + (MAX_KEYS * (NullableInt.SIZE + Pointer.SIZE)) + (2 * Pointer.SIZE);
         public static final int PADDING = NODE_SIZE - PAYLOAD_SIZE;
 
         public final boolean isRoot;
@@ -156,10 +156,10 @@ public class BinaryNode {
 
             for (int i = 0; i < MAX_KEYS; i++) {
                 if (i < keys.size()) {
-                    buffer.putInt(keys.get(i));
+                    new NullableInt(keys.get(i)).writeToBuffer(buffer);
                     dataPointers.get(i).writeToBuffer(buffer);
                 } else {
-                    buffer.putInt(0);
+                    new NullableInt().writeToBuffer(buffer);
                     new Pointer((byte) 0, 0, 0).writeToBuffer(buffer);
                 }
             }
@@ -180,10 +180,10 @@ public class BinaryNode {
             List<Pointer> dataPointers = new ArrayList<>();
 
             for (int i = 0; i < MAX_KEYS; i++) {
-                int key = buffer.getInt();
+                NullableInt key = NullableInt.readFromBuffer(buffer);
                 Pointer dataPtr = Pointer.readFromBuffer(buffer);
-                if (dataPtr.type != 0) {
-                    keys.add(key);
+                if (dataPtr.type != 0 && !key.isNull()) {
+                    keys.add(key.getValue());
                     dataPointers.add(dataPtr);
                 }
             }
